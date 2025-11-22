@@ -1,3 +1,12 @@
+require('dotenv').config();
+const mongoose = require('mongoose');
+
+const mongoURI = process.env.MONGO_URI;  // gets connection string from .env
+
+mongoose.connect(mongoURI)
+  .then(() => console.log('Connected to MongoDB'))
+  .catch(err => console.error('MongoDB connection error:', err));
+
 const readline = require('readline');
 const db = require('./db');
 require('./events/logger'); // Initialize event logger
@@ -230,7 +239,11 @@ function menu() {
 
       case '9':
         console.log('👋 Exiting NodeVault...');
-        rl.close();
+        mongoose.connection.close(() => {
+            console.log('MongoDB connection closed.');
+            rl.close();
+            process.exit(0);
+        });
         break;
 
       default:
