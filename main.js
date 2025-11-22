@@ -6,10 +6,33 @@ const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout
 });
-// ----------------- Export Helper -----------------
+
+// ----------------- Helpers -----------------
 const fs = require('fs');
 const path = require('path');
 
+// -------- Backup Helper --------
+function createBackup(vault) {
+  if (!Array.isArray(vault)) return;
+
+  const backupDir = path.join(__dirname, 'backups');
+
+  // Create backups folder if it doesn't exist
+  if (!fs.existsSync(backupDir)) {
+    fs.mkdirSync(backupDir);
+  }
+
+  const now = new Date();
+  const timestamp = now.toISOString().replace(/:/g, '-').split('.')[0]; // YYYY-MM-DDTHH-MM-SS
+  const backupFileName = `backup_${timestamp}.json`;
+  const backupPath = path.join(backupDir, backupFileName);
+
+  fs.writeFileSync(backupPath, JSON.stringify(vault, null, 2), 'utf-8');
+  console.log(`✅ Backup created successfully: ${backupFileName}`);
+}
+// -------- End Backup Helper --------
+
+// -------- Export Helper --------
 function exportVaultData(vault) {
   if (!Array.isArray(vault) || vault.length === 0) {
     console.log("\nVault is empty. Nothing to export.\n");
@@ -28,13 +51,13 @@ function exportVaultData(vault) {
   }).join('\n');
 
   fs.writeFileSync(filePath, header + recordsText, 'utf-8');
-  console.log(`\nData exported successfully to ${fileName}\n`);
+  console.log(`\n✅ Data exported successfully to ${fileName}\n`);
 }
-// ----------------- End Export Helper -----------------
+// -------- End Export Helper --------
 
-// ----------------- Sorting Helper -----------------
+// -------- Sorting Helper --------
 function sortRecords() {
-  const vault = db.listRecords(); // get current records
+  const vault = db.listRecords();
   if (!Array.isArray(vault) || vault.length === 0) {
     console.log("\nVault is empty. Nothing to sort.\n");
     menu();
@@ -43,7 +66,6 @@ function sortRecords() {
 
   const readlineSync = require('readline-sync');
 
-  // Choose field
   const fieldChoice = readlineSync.question(
     'Choose field to sort by (name/created): '
   ).trim().toLowerCase();
@@ -54,7 +76,6 @@ function sortRecords() {
     return;
   }
 
-  // Choose order
   const orderChoice = readlineSync.question(
     'Choose order (asc/desc): '
   ).trim().toLowerCase();
@@ -65,10 +86,7 @@ function sortRecords() {
     return;
   }
 
-  // Make a copy so original vault isn’t modified
   const sortedVault = [...vault];
-
-  // Sort logic
   sortedVault.sort((a, b) => {
     let valA = a[fieldChoice] ? a[fieldChoice].toString().toLowerCase() : '';
     let valB = b[fieldChoice] ? b[fieldChoice].toString().toLowerCase() : '';
@@ -83,20 +101,19 @@ function sortRecords() {
     return 0;
   });
 
-  // Display
   console.log(`\nSorted Records (${fieldChoice}, ${orderChoice.toUpperCase()}):`);
   sortedVault.forEach((r, idx) => {
     const created = r.created ? r.created : 'N/A';
     console.log(`${idx + 1}. ID: ${r.id} | Name: ${r.name} | Created: ${created}`);
   });
   console.log('');
-  menu(); // back to menu
+  menu();
 }
-// ----------------- End Sorting Helper -----------------
+// -------- End Sorting Helper --------
 
-// ----------------- Search Helper -----------------
+// -------- Search Helper --------
 function searchRecords() {
-  const vault = db.listRecords(); // get current records
+  const vault = db.listRecords();
   if (!Array.isArray(vault) || vault.length === 0) {
     console.log("\nVault is empty. No records to search.\n");
     menu();
@@ -111,16 +128,14 @@ function searchRecords() {
       return;
     }
 
-    // Filter records by ID or Name (case-insensitive, partial match)
     const matches = vault.filter(rec => {
       const recId = rec.id ? String(rec.id).toLowerCase() : '';
       const recName = rec.name ? String(rec.name).toLowerCase() : '';
       return recId.includes(kw) || recName.includes(kw);
     });
 
-    if (matches.length === 0) {
-      console.log("\nNo records found.\n");
-    } else {
+    if (matches.length === 0) console.log("\nNo records found.\n");
+    else {
       console.log(`\nFound ${matches.length} matching record${matches.length > 1 ? 's' : ''}:`);
       matches.forEach((r, idx) => {
         const created = r.created ? r.created : 'N/A';
@@ -128,12 +143,12 @@ function searchRecords() {
       });
       console.log('');
     }
-    menu(); // back to menu
+    menu();
   });
 }
+// -------- End Search Helper --------
 
-// ----------------- End Search Helper -----------------
-
+// ----------------- Main Menu -----------------
 function menu() {
   console.log(`
 ===== NodeVault =====
@@ -155,6 +170,7 @@ function menu() {
           rl.question('Enter value: ', value => {
             db.addRecord({ name, value });
             console.log('✅ Record added successfully!');
+            createBackup(db.listRecords()); // <-- backup after adding
             menu();
           });
         });
@@ -183,6 +199,7 @@ function menu() {
         rl.question('Enter record ID to delete: ', id => {
           const deleted = db.deleteRecord(Number(id));
           console.log(deleted ? '🗑️ Record deleted!' : '❌ Record not found.');
+          if (deleted) createBackup(db.listRecords()); // <-- backup after deletion
           menu();
         });
         break;
@@ -192,12 +209,14 @@ function menu() {
         break;
 
       case '6':
-        sortRecords(); // fixed: now vault is fetched internally
+        sortRecords();
         break;
-      case '7': // adjust number if menu changed
-        exportVaultData(db.listRecords()); 
+
+      case '7':
+        exportVaultData(db.listRecords());
         menu();
         break;
+
       case '8':
         console.log('👋 Exiting NodeVault...');
         rl.close();
@@ -210,5 +229,6 @@ function menu() {
   });
 }
 
+// ----------------- Start App -----------------
 menu();
 
