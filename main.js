@@ -7,6 +7,68 @@ const rl = readline.createInterface({
   output: process.stdout
 });
 
+// ----------------- Sorting Helper -----------------
+function sortRecords() {
+  const vault = db.listRecords(); // get current records
+  if (!Array.isArray(vault) || vault.length === 0) {
+    console.log("\nVault is empty. Nothing to sort.\n");
+    menu();
+    return;
+  }
+
+  const readlineSync = require('readline-sync');
+
+  // Choose field
+  const fieldChoice = readlineSync.question(
+    'Choose field to sort by (name/created): '
+  ).trim().toLowerCase();
+
+  if (!['name', 'created'].includes(fieldChoice)) {
+    console.log('Invalid field choice. Returning to menu.\n');
+    menu();
+    return;
+  }
+
+  // Choose order
+  const orderChoice = readlineSync.question(
+    'Choose order (asc/desc): '
+  ).trim().toLowerCase();
+
+  if (!['asc', 'desc'].includes(orderChoice)) {
+    console.log('Invalid order choice. Returning to menu.\n');
+    menu();
+    return;
+  }
+
+  // Make a copy so original vault isn’t modified
+  const sortedVault = [...vault];
+
+  // Sort logic
+  sortedVault.sort((a, b) => {
+    let valA = a[fieldChoice] ? a[fieldChoice].toString().toLowerCase() : '';
+    let valB = b[fieldChoice] ? b[fieldChoice].toString().toLowerCase() : '';
+
+    if (fieldChoice === 'created') {
+      valA = new Date(valA);
+      valB = new Date(valB);
+    }
+
+    if (valA < valB) return orderChoice === 'asc' ? -1 : 1;
+    if (valA > valB) return orderChoice === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  // Display
+  console.log(`\nSorted Records (${fieldChoice}, ${orderChoice.toUpperCase()}):`);
+  sortedVault.forEach((r, idx) => {
+    const created = r.created ? r.created : 'N/A';
+    console.log(`${idx + 1}. ID: ${r.id} | Name: ${r.name} | Created: ${created}`);
+  });
+  console.log('');
+  menu(); // back to menu
+}
+// ----------------- End Sorting Helper -----------------
+
 // ----------------- Search Helper -----------------
 function searchRecords() {
   const vault = db.listRecords(); // get current records
@@ -24,11 +86,11 @@ function searchRecords() {
       return;
     }
 
-    // Match by ID (exact) or Name (case-insensitive)
+    // Filter records by ID or Name (case-insensitive, partial match)
     const matches = vault.filter(rec => {
-      const idMatch = rec.id && String(rec.id).toLowerCase() === kw;
-      const nameMatch = rec.name && String(rec.name).toLowerCase().includes(kw);
-      return idMatch || nameMatch;
+      const recId = rec.id ? String(rec.id).toLowerCase() : '';
+      const recName = rec.name ? String(rec.name).toLowerCase() : '';
+      return recId.includes(kw) || recName.includes(kw);
     });
 
     if (matches.length === 0) {
@@ -44,6 +106,7 @@ function searchRecords() {
     menu(); // back to menu
   });
 }
+
 // ----------------- End Search Helper -----------------
 
 function menu() {
@@ -54,7 +117,8 @@ function menu() {
 3. Update Record
 4. Delete Record
 5. Search Records
-6. Exit
+6. Sort Records
+7. Exit
 =====================
   `);
 
@@ -102,6 +166,10 @@ function menu() {
         break;
 
       case '6':
+        sortRecords(); // fixed: now vault is fetched internally
+        break;
+
+      case '7':
         console.log('👋 Exiting NodeVault...');
         rl.close();
         break;
@@ -114,3 +182,4 @@ function menu() {
 }
 
 menu();
+
