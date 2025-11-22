@@ -5,12 +5,18 @@ const vaultEvents = require('../events');
 function addRecord({ name, value }) {
   recordUtils.validateRecord({ name, value });
   const data = fileDB.readDB();
-  const newRecord = { id: recordUtils.generateId(), name, value };
+  const newRecord = {
+    id: recordUtils.generateId(),
+    name,
+    value,
+    created: new Date().toISOString() // <-- ADD THIS LINE
+  };
   data.push(newRecord);
   fileDB.writeDB(data);
   vaultEvents.emit('recordAdded', newRecord);
   return newRecord;
 }
+
 
 function listRecords() {
   return fileDB.readDB();
@@ -22,10 +28,12 @@ function updateRecord(id, newName, newValue) {
   if (!record) return null;
   record.name = newName;
   record.value = newValue;
+  record.updated = new Date().toISOString(); // optional
   fileDB.writeDB(data);
   vaultEvents.emit('recordUpdated', record);
   return record;
 }
+
 
 function deleteRecord(id) {
   let data = fileDB.readDB();

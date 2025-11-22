@@ -1,25 +1,24 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
+const readline = require('readline');
+const fs = require('fs');
+const path = require('path');
+const db = require('./db');
+require('./events/logger'); // Initialize event logger
 
-const mongoURI = process.env.MONGO_URI;  // gets connection string from .env
-
+// ----------------- MongoDB Setup -----------------
+const mongoURI = process.env.MONGO_URI;
 mongoose.connect(mongoURI)
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-const readline = require('readline');
-const db = require('./db');
-require('./events/logger'); // Initialize event logger
-
+// ----------------- Readline Interface -----------------
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout
 });
 
-const fs = require('fs');
-const path = require('path');
-
-// -------- Backup Helper --------
+// ----------------- Backup Helper -----------------
 function createBackup(vault) {
   if (!Array.isArray(vault)) return;
 
@@ -27,7 +26,7 @@ function createBackup(vault) {
   if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir);
 
   const now = new Date();
-  const timestamp = now.toISOString().replace(/:/g, '-').split('.')[0]; // YYYY-MM-DDTHH-MM-SS
+  const timestamp = now.toISOString().replace(/:/g, '-').split('.')[0];
   const backupFileName = `backup_${timestamp}.json`;
   const backupPath = path.join(backupDir, backupFileName);
 
@@ -35,7 +34,7 @@ function createBackup(vault) {
   console.log(`✅ Backup created successfully: ${backupFileName}`);
 }
 
-// -------- Export Helper --------
+// ----------------- Export Helper -----------------
 function exportVaultData(vault) {
   if (!Array.isArray(vault) || vault.length === 0) {
     console.log("\nVault is empty. Nothing to export.\n");
@@ -57,49 +56,50 @@ function exportVaultData(vault) {
   console.log(`\n✅ Data exported successfully to ${fileName}\n`);
 }
 
-// -------- Sorting Helper --------
+// ----------------- Sort Records Helper -----------------
 function sortRecords() {
   const vault = db.listRecords();
   if (!vault.length) {
     console.log("\nVault is empty. Nothing to sort.\n");
-    menu();
-    return;
+    return menu();
   }
 
-  const readlineSync = require('readline-sync');
-  const fieldChoice = readlineSync.question('Choose field to sort by (name/created): ').trim().toLowerCase();
-  const orderChoice = readlineSync.question('Choose order (asc/desc): ').trim().toLowerCase();
+  rl.question('Choose field to sort by (name/created): ', field => {
+    const fieldChoice = field.trim().toLowerCase();
+    rl.question('Choose order (asc/desc): ', order => {
+      const orderChoice = order.trim().toLowerCase();
 
-  const sortedVault = [...vault].sort((a, b) => {
-    let valA = a[fieldChoice] ? a[fieldChoice].toString().toLowerCase() : '';
-    let valB = b[fieldChoice] ? b[fieldChoice].toString().toLowerCase() : '';
+      const sortedVault = [...vault].sort((a, b) => {
+        let valA = a[fieldChoice] ? a[fieldChoice].toString().toLowerCase() : '';
+        let valB = b[fieldChoice] ? b[fieldChoice].toString().toLowerCase() : '';
 
-    if (fieldChoice === 'created') {
-      valA = a.created ? new Date(a.created) : new Date(0);
-      valB = b.created ? new Date(b.created) : new Date(0);
-    }
+        if (fieldChoice === 'created') {
+          valA = a.created ? new Date(a.created) : new Date(0);
+          valB = b.created ? new Date(b.created) : new Date(0);
+        }
 
-    if (valA < valB) return orderChoice === 'asc' ? -1 : 1;
-    if (valA > valB) return orderChoice === 'asc' ? 1 : -1;
-    return 0;
+        if (valA < valB) return orderChoice === 'asc' ? -1 : 1;
+        if (valA > valB) return orderChoice === 'asc' ? 1 : -1;
+        return 0;
+      });
+
+      console.log(`\nSorted Records (${fieldChoice}, ${orderChoice.toUpperCase()}):`);
+      sortedVault.forEach((r, idx) => {
+        const created = r.created ? r.created : 'N/A';
+        console.log(`${idx + 1}. ID: ${r.id} | Name: ${r.name} | Value: ${r.value} | Created: ${created}`);
+      });
+      console.log('');
+      menu();
+    });
   });
-
-  console.log(`\nSorted Records (${fieldChoice}, ${orderChoice.toUpperCase()}):`);
-  sortedVault.forEach((r, idx) => {
-    const created = r.created ? r.created : 'N/A';
-    console.log(`${idx + 1}. ID: ${r.id} | Name: ${r.name} | Value: ${r.value} | Created: ${created}`);
-  });
-  console.log('');
-  menu();
 }
 
-// -------- Search Helper --------
+// ----------------- Search Records Helper -----------------
 function searchRecords() {
   const vault = db.listRecords();
   if (!vault.length) {
     console.log("\nVault is empty. No records to search.\n");
-    menu();
-    return;
+    return menu();
   }
 
   rl.question('\nEnter search keyword (ID or Name): ', keyword => {
@@ -123,13 +123,12 @@ function searchRecords() {
   });
 }
 
-// -------- Vault Statistics Helper --------
+// ----------------- Vault Statistics Helper -----------------
 function viewVaultStatistics() {
   const vault = db.listRecords();
   if (!vault.length) {
     console.log("\nVault is empty. No statistics available.\n");
-    menu();
-    return;
+    return menu();
   }
 
   const totalRecords = vault.length;
@@ -180,7 +179,7 @@ function menu() {
       case '1':
         rl.question('Enter name: ', name => {
           rl.question('Enter value: ', value => {
-            db.addRecord({ name, value }); // db.addRecord should add created timestamp
+            db.addRecord({ name, value }); // should add created timestamp internally
             console.log('✅ Record added successfully!');
             createBackup(db.listRecords());
             menu();
@@ -240,9 +239,9 @@ function menu() {
       case '9':
         console.log('👋 Exiting NodeVault...');
         mongoose.connection.close(() => {
-            console.log('MongoDB connection closed.');
-            rl.close();
-            process.exit(0);
+          console.log('MongoDB connection closed.');
+          rl.close();
+          process.exit(0);
         });
         break;
 
