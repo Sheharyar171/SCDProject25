@@ -6,6 +6,31 @@ const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout
 });
+// ----------------- Export Helper -----------------
+const fs = require('fs');
+const path = require('path');
+
+function exportVaultData(vault) {
+  if (!Array.isArray(vault) || vault.length === 0) {
+    console.log("\nVault is empty. Nothing to export.\n");
+    return;
+  }
+
+  const fileName = 'export.txt';
+  const filePath = path.join(__dirname, fileName);
+
+  const now = new Date();
+  const header = `Vault Export\nDate: ${now.toLocaleString()}\nTotal Records: ${vault.length}\nFile: ${fileName}\n\n`;
+
+  const recordsText = vault.map((r, idx) => {
+    const created = r.created ? r.created : 'N/A';
+    return `${idx + 1}. ID: ${r.id} | Name: ${r.name} | Created: ${created}`;
+  }).join('\n');
+
+  fs.writeFileSync(filePath, header + recordsText, 'utf-8');
+  console.log(`\nData exported successfully to ${fileName}\n`);
+}
+// ----------------- End Export Helper -----------------
 
 // ----------------- Sorting Helper -----------------
 function sortRecords() {
@@ -118,7 +143,8 @@ function menu() {
 4. Delete Record
 5. Search Records
 6. Sort Records
-7. Exit
+7. Export Data
+8. Exit
 =====================
   `);
 
@@ -168,8 +194,11 @@ function menu() {
       case '6':
         sortRecords(); // fixed: now vault is fetched internally
         break;
-
-      case '7':
+      case '7': // adjust number if menu changed
+        exportVaultData(db.listRecords()); 
+        menu();
+        break;
+      case '8':
         console.log('👋 Exiting NodeVault...');
         rl.close();
         break;
