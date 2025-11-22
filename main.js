@@ -7,6 +7,45 @@ const rl = readline.createInterface({
   output: process.stdout
 });
 
+// ----------------- Search Helper -----------------
+function searchRecords() {
+  const vault = db.listRecords(); // get current records
+  if (!Array.isArray(vault) || vault.length === 0) {
+    console.log("\nVault is empty. No records to search.\n");
+    menu();
+    return;
+  }
+
+  rl.question('\nEnter search keyword (ID or Name): ', keyword => {
+    const kw = keyword.trim().toLowerCase();
+    if (kw.length === 0) {
+      console.log("No keyword entered. Returning to menu.\n");
+      menu();
+      return;
+    }
+
+    // Match by ID (exact) or Name (case-insensitive)
+    const matches = vault.filter(rec => {
+      const idMatch = rec.id && String(rec.id).toLowerCase() === kw;
+      const nameMatch = rec.name && String(rec.name).toLowerCase().includes(kw);
+      return idMatch || nameMatch;
+    });
+
+    if (matches.length === 0) {
+      console.log("\nNo records found.\n");
+    } else {
+      console.log(`\nFound ${matches.length} matching record${matches.length > 1 ? 's' : ''}:`);
+      matches.forEach((r, idx) => {
+        const created = r.created ? r.created : 'N/A';
+        console.log(`${idx + 1}. ID: ${r.id} | Name: ${r.name} | Created: ${created}`);
+      });
+      console.log('');
+    }
+    menu(); // back to menu
+  });
+}
+// ----------------- End Search Helper -----------------
+
 function menu() {
   console.log(`
 ===== NodeVault =====
@@ -14,7 +53,8 @@ function menu() {
 2. List Records
 3. Update Record
 4. Delete Record
-5. Exit
+5. Search Records
+6. Exit
 =====================
   `);
 
@@ -58,6 +98,10 @@ function menu() {
         break;
 
       case '5':
+        searchRecords();
+        break;
+
+      case '6':
         console.log('👋 Exiting NodeVault...');
         rl.close();
         break;
