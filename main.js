@@ -6,6 +6,7 @@ const path = require('path');
 const db = require('./db');
 require('./events/logger'); // Initialize event logger
 
+
 // ----------------- MongoDB Setup -----------------
 const mongoURI = process.env.MONGO_URI;
 mongoose.connect(mongoURI)
